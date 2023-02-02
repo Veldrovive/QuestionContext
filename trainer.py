@@ -119,7 +119,7 @@ class Trainer:
             # print(unique_answer_indices)
             # print(first_answer_list)
             # print(f"Unique answers: {len(unique_answer_embeddings)} out of {len(answer_embeddings)}")
-            return (sample[0], unique_answer_embeddings, sample[2], unique_answer_text, sample[4], first_answer_list)
+            return [sample[0], unique_answer_embeddings, sample[2], unique_answer_text, sample[4], first_answer_list]
 
     def run_test(self, epoch: int, out_of: int = 100, sample_limit: int = None, example_prediction_limit: int = 10, dataset: SquadLocalContextContrastiveDataset = None):
         """
@@ -196,6 +196,7 @@ class Trainer:
 
     def train(self,
         epochs: int,
+        start_epoch: int = 0,
         train_sample_limit: int = None,
         val_sample_limit: int = None,
         test_out_of: int = 100,
@@ -204,14 +205,14 @@ class Trainer:
         if self.model.identity:
             top_1, top_5, top_10 = self.run_test(0, out_of=test_out_of, sample_limit=test_sample_limit)
         else:
-            for epoch in range(epochs):
+            for epoch in range(start_epoch, epochs):
                 train_loss = self.run_epoch(epoch, train_sample_limit)
                 print(f"Average Train loss: {train_loss}")
                 val_loss = self.run_eval(epoch, val_sample_limit)
                 print(f"Average Val loss: {val_loss}")
                 top_1, top_5, top_10 = self.run_test(epoch, out_of=test_out_of, sample_limit=test_sample_limit)
                 print(f"Top 1: {top_1} Top 5: {top_5} Top 10: {top_10}")
-                self.save(epoch)
+                self.save(epoch+1)
 
         if self.tracker is not None:
             self.tracker.clean_up()

@@ -14,12 +14,23 @@ class WandBTracker:
         run_name: str,
         config: dict = None,
         report_train_loss_every: int = 1,
+        run_id: str = None
     ):
-        wandb.init(
-            project=project_name,
-            name=run_name,
-            config=config,
-        )
+        if run_id:
+            wandb.init(
+                project=project_name,
+                name=run_name,
+                config=config,
+                id=run_id,
+                resume="must"
+            )
+            print(f"Resuming run {run_id}")
+        else:
+            wandb.init(
+                project=project_name,
+                name=run_name,
+                config=config,
+            )
         self.config = config
         self.step = 0
         self.report_train_loss_every = report_train_loss_every
@@ -87,11 +98,11 @@ class WandBTracker:
         }
         torch.save(save_dict, path)
 
-    def load(self, model: torch.nn.Module, optimizer: torch.optim.Optimizer):
+    def load(self, path: Path, model: torch.nn.Module, optimizer: torch.optim.Optimizer):
         """
         Loads the model, optimizer, and scheduler
         """
-        save_dict = torch.load(self.save_path)
+        save_dict = torch.load(path)
         model.load_state_dict(save_dict["model"])
         optimizer.load_state_dict(save_dict["optimizer"])
         self.step = save_dict["step"]

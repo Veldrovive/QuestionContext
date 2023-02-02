@@ -37,6 +37,9 @@ if __name__ == "__main__":
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--lr", type=float, default=1e-3)
 
+    parser.add_argument("--checkpoint", type=str, default=None)
+    parser.add_argument("--resume-run-id", type=str, default=None)
+
     args = parser.parse_args()
 
     # Load the datasets and CLIP model for preprocessing
@@ -79,7 +82,7 @@ if __name__ == "__main__":
         "batch_size": args.batch_size,
         "test_out_of": args.test_out_of,
         "lr": args.lr
-    }, report_train_loss_every=1)
+    }, report_train_loss_every=1, run_id=args.resume_run_id)
 
     trainer = Trainer(
         train_dataset,
@@ -93,8 +96,14 @@ if __name__ == "__main__":
         lr = args.lr
     )
 
+    start_epoch = 0
+    if args.checkpoint:
+        start_epoch = tracker.load(args.checkpoint, qclip, trainer.optimizer)
+        print(f"Loaded checkpoint from {args.checkpoint} at epoch {start_epoch} and step {tracker.step}.")
+
     trainer.train(
         epochs = 50,
+        start_epoch = start_epoch,
         train_sample_limit = args.train_sample_limit,
         val_sample_limit = args.val_sample_limit,
         test_out_of=args.test_out_of,
