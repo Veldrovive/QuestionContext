@@ -1,5 +1,9 @@
+from typing import List, Dict, Any
+from pathlib import Path
+
 import wandb
 import torch
+
 
 class WandBTracker:
     """
@@ -16,6 +20,7 @@ class WandBTracker:
             name=run_name,
             config=config,
         )
+        self.config = config
         self.step = 0
         self.report_train_loss_every = report_train_loss_every
         self.train_loss_queue = []
@@ -48,6 +53,49 @@ class WandBTracker:
         Records the loss for the test step
         """
         wandb.log({"top_1_score": top_1_score, "top_5_score": top_5_score, "top_10_score": top_10_score, "epoch": epoch}, step=self.step)
+
+    def log_prediction_examples(self, examples: Dict[str, Dict[str, Any]], epoch: int):
+        """
+        Creates a table to log the model predictions
+
+        Examples has the format: { question_id: { question: str, true_context: str, predicted_contexts: [str], true_prediction_index: int, out_of_unique_contexts: int } }
+
+        All questions have the same number of predicted contexts
+        """
+        num_predictions = len(examples[list(examples.keys())[0]]["predicted_contexts"])
+        table = wandb.Table(columns=["Question", "True Prediction Index", "Out Of", "True Context"] + [f"Prediction {i}" for i in range(num_predictions)])
+        for example in examples.values():
+            table.add_data(
+                example["question"],
+                example["true_prediction_index"],
+                example["out_of_unique_contexts"],
+                example["true_context"],
+                *example["predicted_contexts"]
+            )
+        wandb.log({"prediction_examples": table, "epoch": epoch}, step=self.step)
+
+    def save(self, path: Path, model: torch.nn.Module, optimizer: torch.optim.Optimizer, epoch: int):
+        """
+        Saves the model, optimizer, and scheduler
+        """
+        save_dict = {
+            "model": model.state_dict(),
+            "optimizer": optimizer.state_dict(),
+            "epoch": epoch,
+            "step": self.step,
+            "config": self.config
+        }
+        torch.save(save_dict, path)
+
+    def load(self, model: torch.nn.Module, optimizer: torch.optim.Optimizer):
+        """
+        Loads the model, optimizer, and scheduler
+        """
+        save_dict = torch.load(self.save_path)
+        model.load_state_dict(save_dict["model"])
+        optimizer.load_state_dict(save_dict["optimizer"])
+        self.step = save_dict["step"]
+        return save_dict["epoch"]
 
     def clean_up(self):
         """

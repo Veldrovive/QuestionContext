@@ -116,11 +116,17 @@ class SquadLocalContextContrastiveDataset(Dataset):
                     self.qids.append(qid)
                     self.qid_article_map[qid] = title
                     answer_sentences = []
+                    # The same answer may appear multiple times for some reason. We only keep one example of each answer that appears at the same position
+                    seen_answers = set()
                     for answer in answers:
                         answer_text, answer_start = answer["text"], answer["answer_start"]
                         for i, sentence in enumerate(sentences):
                             if answer_start >= sentence_indices[i] and answer_start < sentence_indices[i+1]:
+                                # if sentence in seen_answers:
+                                #     # Each sentence may only be an answer once. The same sentence being an answer to the same question multiple times doesn't make sense
+                                #     break
                                 answer_sentences.append(sentence)
+                                seen_answers.add(sentence)
                                 break
                     if len(answer_sentences) == 0:
                         raise ValueError(f"Could not find sentence for answer {answer_text} in context {context}")
@@ -143,13 +149,14 @@ class SquadLocalContextContrastiveDataset(Dataset):
         positive_example = random.choice(answer_sentences)
         if self.clip_model is not None:
             with torch.no_grad(), torch.cuda.amp.autocast():
-                question, positive_example = self.clip_model.encode_text(
+                clip_question, clip_positive_example = self.clip_model.encode_text(
                     self.clip_tokenizer([question, positive_example]).to(self.clip_device)
                 ).float()
                 if self.normalize_clip:
-                    question /= question.norm(dim=-1, keepdim=True)
-                    positive_example /= positive_example.norm(dim=-1, keepdim=True)
-        return question, positive_example
+                    clip_question /= clip_question.norm(dim=-1, keepdim=True)
+                    clip_positive_example /= clip_positive_example.norm(dim=-1, keepdim=True)
+                return clip_question, clip_positive_example, question, positive_example, qid
+        return question, positive_example, qid
 
 class SquadGlobalContextContrastiveDataset(Dataset):
     """
@@ -161,10 +168,17 @@ class SquadGlobalContextContrastiveDataset(Dataset):
 
 if __name__ == "__main__":
     train_set, test_set = get_sets()
-    model, _, preprocess = open_clip.create_model_and_transforms('ViT-B-32-quickgelu', pretrained='laion400m_e32')
-    tokenizer = open_clip.get_tokenizer('ViT-B-32-quickgelu')
-    dataset = SquadLocalContextContrastiveDataset(train_set, model, tokenizer, normalize_clip=True)
+    use_clip = False
+    if use_clip:
+        clip_model, _, preprocess = open_clip.create_model_and_transforms('ViT-B-32-quickgelu', pretrained='laion400m_e32')
+        tokenizer = open_clip.get_tokenizer('ViT-B-32-quickgelu')
+        dataset = SquadLocalContextContrastiveDataset(train_set, clip_model, tokenizer, normalize_clip=True)
+    else:
+        dataset = SquadLocalContextContrastiveDataset(train_set)
     # print(dataset.qid_map)
     # print(dataset.article_sentences)
     print(len(dataset))
-    print(dataset[5000])
+    print(dataset[0])
+
+    qid = dataset.qids[1]
+    print(dataset.qid_map[qid])

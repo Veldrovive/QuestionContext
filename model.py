@@ -4,17 +4,35 @@ import torch
 from pathlib import Path
 
 class QProjection(nn.Module):
-    def __init__(self, input_dim: int, output_dim: int):
+    def __init__(self, input_dim: int, output_dim: int, layers: int, hidden_dim: int = 768):
         super().__init__()
-        self.projection = nn.Linear(input_dim, output_dim)
+        if layers == 1:
+            self.projection = nn.Linear(input_dim, output_dim)
+        else:
+            self.projection = nn.Sequential()
+            self.projection.add_module("projection_0", nn.Linear(input_dim, hidden_dim))
+            for i in range(1, layers - 1):
+                self.projection.add_module(f"projection_{i}_activation", nn.ReLU())
+                self.projection.add_module(f"projection_{i}", nn.Linear(hidden_dim, hidden_dim))
+            self.projection.add_module(f"projection_{layers - 1}_activation", nn.ReLU())
+            self.projection.add_module(f"projection_{layers - 1}", nn.Linear(hidden_dim, output_dim))
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.projection(x)
 
 class AProjection(nn.Module):
-    def __init__(self, input_dim: int, output_dim: int):
+    def __init__(self, input_dim: int, output_dim: int, layers: int, hidden_dim: int = 768):
         super().__init__()
-        self.projection = nn.Linear(input_dim, output_dim)
+        if layers == 1:
+            self.projection = nn.Linear(input_dim, output_dim)
+        else:
+            self.projection = nn.Sequential()
+            self.projection.add_module("projection_0", nn.Linear(input_dim, hidden_dim))
+            for i in range(1, layers - 1):
+                self.projection.add_module(f"projection_{i}_activation", nn.ReLU())
+                self.projection.add_module(f"projection_{i}", nn.Linear(hidden_dim, hidden_dim))
+            self.projection.add_module(f"projection_{layers - 1}_activation", nn.ReLU())
+            self.projection.add_module(f"projection_{layers - 1}", nn.Linear(hidden_dim, output_dim))
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.projection(x)
@@ -34,15 +52,15 @@ class QClip(nn.Module):
         """
         Creates the projection models for the question and answer embeddings if requested. Otherwise add an identity layer.
         """
-        assert projection_layers == 1, "MLP projection layers not yet implemented."
         super().__init__()
         self.embedding_dim = embedding_dim
         self.output_dim = output_dim
         self.temperature = temperature
         self.simple_loss = simple_loss
         self.return_loss = return_loss
-        self.q_projection = QProjection(embedding_dim, output_dim) if use_question_projection else nn.Identity()
-        self.a_projection = AProjection(embedding_dim, output_dim) if use_answer_projection else nn.Identity()
+        self.q_projection = QProjection(embedding_dim, output_dim, layers=projection_layers) if use_question_projection else nn.Identity()
+        self.a_projection = AProjection(embedding_dim, output_dim, layers=projection_layers) if use_answer_projection else nn.Identity()
+        self.identity = not use_question_projection and not use_answer_projection
 
     def __softmax_cross_entropy(self, logits: torch.Tensor, targets: torch.Tensor, reduction: str="none") -> torch.Tensor:
         log_softmax = nn.LogSoftmax(dim=-1)

@@ -16,6 +16,9 @@ if __name__ == "__main__":
     parser.add_argument("--save-dir", type=str, default=None)
     parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--batch-size", type=int, default=64)
+    parser.add_argument("--train-sample-limit", type=int, default=None)
+    parser.add_argument("--val-sample-limit", type=int, default=None)
+    parser.add_argument("--test-sample-limit", type=int, default=None)
     parser.add_argument("--test-out-of", type=int, default=100)
     parser.add_argument("--clip-arch", type=str, default="ViT-B-32-quickgelu")
     parser.add_argument("--clip-checkpoint", type=str, default="laion400m_e32")
@@ -92,8 +95,8 @@ if __name__ == "__main__":
 
     trainer.train(
         epochs = 50,
-        train_sample_limit = None,
-        val_sample_limit = None,
+        train_sample_limit = args.train_sample_limit,
+        val_sample_limit = args.val_sample_limit,
         test_out_of=args.test_out_of,
-        test_sample_limit = None
+        test_sample_limit = args.test_sample_limit
     )
