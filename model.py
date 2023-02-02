@@ -24,6 +24,7 @@ class QClip(nn.Module):
         self,
         embedding_dim: int,
         output_dim: int,
+        projection_layers: int = 1,
         use_question_projection: bool = True,
         use_answer_projection: bool = True,
         temperature: float = 1.0,
@@ -33,6 +34,7 @@ class QClip(nn.Module):
         """
         Creates the projection models for the question and answer embeddings if requested. Otherwise add an identity layer.
         """
+        assert projection_layers == 1, "MLP projection layers not yet implemented."
         super().__init__()
         self.embedding_dim = embedding_dim
         self.output_dim = output_dim

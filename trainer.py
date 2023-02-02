@@ -18,7 +18,8 @@ class Trainer:
         tracker: WandBTracker = None,
         batch_size: int = 32,
         shuffle: bool = True,
-        save_dir: str = None
+        save_dir: str = None,
+        lr: float = 1e-3
     ):
         self.train_dataset = train_dataset
         self.val_dataset = val_dataset
@@ -27,7 +28,7 @@ class Trainer:
         self.model.return_loss = True
         self.save_dir = save_dir
 
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
 
         self.batch_size = batch_size
         self.train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
