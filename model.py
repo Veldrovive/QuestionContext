@@ -1,6 +1,7 @@
 from torch import nn
 import torch.nn.functional as F
 import torch
+from pathlib import Path
 
 class QProjection(nn.Module):
     def __init__(self, input_dim: int, output_dim: int):
@@ -54,11 +55,13 @@ class QClip(nn.Module):
         Assume batch is a tuple of question and answer embeddings
         Dimensions of both should be (*, embedding_dim)
         """
+        batch = (self.q_projection(batch[0]), self.a_projection(batch[1]))
         logits = (batch[0] @ batch[1].T) / self.temperature
+        # logits.requires_grad = True
 
         if self.return_loss:
             if self.simple_loss:
-                loss = nn.CrossEntropyLoss()(logits, torch.arange(logits.shape[0]))
+                loss = nn.CrossEntropyLoss()(logits, torch.arange(logits.shape[0]).to(logits.device))
             else:
                 q_self_similarity = (batch[0] @ batch[0].T)
                 a_self_similarity = (batch[1] @ batch[1].T)
@@ -71,6 +74,9 @@ class QClip(nn.Module):
             return logits, loss.mean()
         else:
             return logits
+
+    def save(self, path: Path):
+        torch.save(self.state_dict(), path)
 
 
 

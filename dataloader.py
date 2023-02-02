@@ -76,9 +76,10 @@ class SquadLocalContextContrastiveDataset(Dataset):
         Now that I'm thinking about it, it would be way to easy to use keyword matching to select the sentence from the right article so at least some negative
         examples need to come from the same article as the positive example
     """
-    def __init__(self, squad_set_path: Path, clip_model = None, clip_tokenizer = None, normalize_clip = False):
+    def __init__(self, squad_set_path: Path, clip_model = None, clip_tokenizer = None, normalize_clip = False, clip_device = None):
         self.squad_set = load_set(squad_set_path)
         self.clip_model = clip_model
+        self.clip_device = clip_device
         self.clip_tokenizer = clip_tokenizer
         self.normalize_clip = normalize_clip
 
@@ -143,8 +144,8 @@ class SquadLocalContextContrastiveDataset(Dataset):
         if self.clip_model is not None:
             with torch.no_grad(), torch.cuda.amp.autocast():
                 question, positive_example = self.clip_model.encode_text(
-                    self.clip_tokenizer([question, positive_example])
-                )
+                    self.clip_tokenizer([question, positive_example]).to(self.clip_device)
+                ).float()
                 if self.normalize_clip:
                     question /= question.norm(dim=-1, keepdim=True)
                     positive_example /= positive_example.norm(dim=-1, keepdim=True)
