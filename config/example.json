@@ -1,0 +1,34 @@
+{
+    "run": {
+        "run_name": "test",
+        "save_dir": "./checkpoints",
+        "save_latest": true,
+        "save_all": true,
+
+        "epochs": 50,
+        "train_sample_limit": null,
+        "val_sample_limit": null,
+        "test_sample_limit": null,
+        "test_out_of": 500
+    },
+    "data": {
+        "context_radius": 0,
+        "clip_arch": "ViT-L-14",
+        "clip_checkpoint": "laion400m_e32",
+        "train_split": 0.9
+    },
+    "model": {
+        "output_dim": 512,
+        "hidden_dim": 768,
+        "num_layers": 2,
+
+        "context_projection": false,
+        "question_projection": true
+    },
+    "train": {
+        "batch_size": 2048,
+        "simple_loss": true,
+        "temperature": 1.0,
+        "lr": 1e-3
+    }
+}

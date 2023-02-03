@@ -4,6 +4,8 @@ from pathlib import Path
 import wandb
 import torch
 
+from config import Config
+
 
 class WandBTracker:
     """
@@ -12,7 +14,7 @@ class WandBTracker:
     def __init__(self,
         project_name: str,
         run_name: str,
-        config: dict = None,
+        config: Config,
         report_train_loss_every: int = 1,
         run_id: str = None
     ):
@@ -20,7 +22,7 @@ class WandBTracker:
             wandb.init(
                 project=project_name,
                 name=run_name,
-                config=config,
+                config=config.dict(),
                 id=run_id,
                 resume="must"
             )
@@ -29,9 +31,10 @@ class WandBTracker:
             wandb.init(
                 project=project_name,
                 name=run_name,
-                config=config,
+                config=config.dict(),
             )
         self.config = config
+        self.config.runtime.wandb_run_id = wandb.run.id
         self.step = 0
         self.report_train_loss_every = report_train_loss_every
         self.train_loss_queue = []
@@ -59,11 +62,11 @@ class WandBTracker:
         wandb.log({"val_loss": loss, "epoch": epoch}, step=self.step)
 
 
-    def log_test_accuracy(self, top_1_score, top_5_score, top_10_score, epoch: int):
+    def log_test_accuracy(self, top_1_score, top_5_score, top_10_score, average_position, epoch: int):
         """
         Records the loss for the test step
         """
-        wandb.log({"top_1_score": top_1_score, "top_5_score": top_5_score, "top_10_score": top_10_score, "epoch": epoch}, step=self.step)
+        wandb.log({"top_1_score": top_1_score, "top_5_score": top_5_score, "top_10_score": top_10_score, "average_position": average_position, "epoch": epoch}, step=self.step)
 
     def log_prediction_examples(self, examples: Dict[str, Dict[str, Any]], epoch: int):
         """
@@ -94,7 +97,7 @@ class WandBTracker:
             "optimizer": optimizer.state_dict(),
             "epoch": epoch,
             "step": self.step,
-            "config": self.config
+            "config": self.config.dict()
         }
         torch.save(save_dict, path)
 

@@ -42,6 +42,7 @@ class QClip(nn.Module):
         self,
         embedding_dim: int,
         output_dim: int,
+        hidden_dim: int = 768,
         projection_layers: int = 1,
         use_question_projection: bool = True,
         use_answer_projection: bool = True,
@@ -55,11 +56,14 @@ class QClip(nn.Module):
         super().__init__()
         self.embedding_dim = embedding_dim
         self.output_dim = output_dim
+        self.hidden_dim = hidden_dim
         self.temperature = temperature
         self.simple_loss = simple_loss
         self.return_loss = return_loss
-        self.q_projection = QProjection(embedding_dim, output_dim, layers=projection_layers) if use_question_projection else nn.Identity()
-        self.a_projection = AProjection(embedding_dim, output_dim, layers=projection_layers) if use_answer_projection else nn.Identity()
+        self.use_question_projection = use_question_projection
+        self.use_answer_projection = use_answer_projection
+        self.q_projection = QProjection(embedding_dim, output_dim, layers=projection_layers, hidden_dim=hidden_dim) if use_question_projection else nn.Identity()
+        self.a_projection = AProjection(embedding_dim, output_dim, layers=projection_layers, hidden_dim=hidden_dim) if use_answer_projection else nn.Identity()
         self.identity = not use_question_projection and not use_answer_projection
 
     def __softmax_cross_entropy(self, logits: torch.Tensor, targets: torch.Tensor, reduction: str="none") -> torch.Tensor:

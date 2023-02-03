@@ -7,6 +7,7 @@ from pathlib import Path
 from dataloader import SquadLocalContextContrastiveDataset
 from model import QClip
 from tracker import WandBTracker
+from config import Config
 
 class Trainer:
     def __init__(
@@ -15,27 +16,28 @@ class Trainer:
         val_dataset: SquadLocalContextContrastiveDataset,
         test_dataset: SquadLocalContextContrastiveDataset,
         model: QClip,
+        config: Config,
         tracker: WandBTracker = None,
-        batch_size: int = 32,
-        shuffle: bool = True,
-        save_dir: str = None,
-        lr: float = 1e-3
+        shuffle: bool = True
     ):
         self.train_dataset = train_dataset
         self.val_dataset = val_dataset
         self.test_dataset = test_dataset
         self.model = model
         self.model.return_loss = True
-        self.save_dir = save_dir
+        self.config = config
 
         if not self.model.identity:
-            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.train.lr)
 
-        self.batch_size = batch_size
-        self.train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
-        self.val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=shuffle)
+        self.batch_size = config.train.batch_size
+        self.train_dataloader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=shuffle)
+        self.val_dataloader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=shuffle)
 
         self.tracker = tracker
+
+    def load_optimizer_state_dict(self, optimizer_state_dict):
+        self.optimizer.load_state_dict(optimizer_state_dict)
 
     def _to_model_device(self, sample):
         if self.model.identity:
@@ -139,6 +141,8 @@ class Trainer:
         predicted_name_samples = len(dataset) if sample_limit is None else min(sample_limit, len(dataset))
         progress_bar = tqdm(dataloader, total=int(round(predicted_name_samples / out_of)))
         predictions = {}  # { question_id: { question: str, true_context: str, predicted_contexts: [str], true_prediction_index: int } }
+        position_sum = 0
+        total_samples = 0
         for sample in progress_bar:
             if sample_limit is not None and total_samples >= sample_limit:
                 break
@@ -162,6 +166,8 @@ class Trainer:
             top_5_count += np.sum(correct_answer_positions < 5)
             top_10_count += np.sum(correct_answer_positions < 10)
 
+            position_sum += np.sum(correct_answer_positions)
+
 
             questions, contexts, qids, unique_context_map = sample[2], sample[3], sample[4], sample[5]
             for i in range(len(questions)):
@@ -180,19 +186,24 @@ class Trainer:
 
             progress_bar.set_description(f"Top 1: {top_1_count / total_samples:.4f} Top 5: {top_5_count / total_samples:.4f} Top 10: {top_10_count / total_samples:.4f}")
 
+        average_position = position_sum / total_samples
+
         if self.tracker is not None:
-            self.tracker.log_test_accuracy(top_1_count / total_samples, top_5_count / total_samples, top_10_count / total_samples, epoch)
+            self.tracker.log_test_accuracy(top_1_count / total_samples, top_5_count / total_samples, top_10_count / total_samples, average_position, epoch)
             self.tracker.log_prediction_examples(predictions, epoch)
         print(f"Finished test: {epoch}\n------------\n")
         return top_1_count / total_samples, top_5_count / total_samples, top_10_count / total_samples
 
     def save(self, epoch: int):
-        if self.save_dir is None:
-            return
-        save_path = Path(self.save_dir) / f"epoch_{epoch}.pt"
-        if not save_path.parent.exists():
-            save_path.parent.mkdir(parents=True)
-        self.tracker.save(save_path, model=self.model, optimizer=self.optimizer, epoch=epoch)
+        save_dir = Path(self.config.run.save_dir)
+        if not save_dir.exists():
+            save_dir.mkdir(parents=True)
+        if self.config.run.save_all:
+            all_save_path = save_dir / f"epoch_{epoch}.pt"
+            self.tracker.save(all_save_path, model=self.model, optimizer=self.optimizer, epoch=epoch)
+        if self.config.run.save_latest:
+            latest_path = save_dir / "latest.pt"
+            self.tracker.save(latest_path, model=self.model, optimizer=self.optimizer, epoch=epoch)
 
     def train(self,
         epochs: int,

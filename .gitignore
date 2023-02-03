@@ -1,6 +1,9 @@
 wandb/
 checkpoints/
 
+config/*.json
+!config/example.json
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
